@@ -68,11 +68,6 @@ body {
   z-index: 1;
 }
 
-.header-actions {
-  position: absolute;
-  right: 16px;
-}
-
 .app-title {
   font-size: 13px;
   font-weight: 500;
