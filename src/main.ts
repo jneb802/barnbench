@@ -178,3 +178,12 @@ ipcMain.handle('read-file', (_: IpcMainInvokeEvent, filePath: string): string | 
     return null;
   }
 });
+
+ipcMain.handle('write-file', (_: IpcMainInvokeEvent, filePath: string, content: string): boolean => {
+  try {
+    fs.writeFileSync(filePath, content, 'utf-8');
+    return true;
+  } catch {
+    return false;
+  }
+});

@@ -4,8 +4,9 @@ const emptyState = document.getElementById('emptyState') as HTMLDivElement;
 const emptySetupBtn = document.getElementById('emptySetupBtn') as HTMLButtonElement;
 const detailContainer = document.getElementById('detailContainer') as HTMLDivElement;
 const detailFilename = document.getElementById('detailFilename') as HTMLSpanElement;
-const detailContent = document.getElementById('detailContent') as HTMLDivElement;
+const detailContent = document.getElementById('detailContent') as HTMLTextAreaElement;
 const detailCopyBtn = document.getElementById('detailCopyBtn') as HTMLButtonElement;
+const detailSaveBtn = document.getElementById('detailSaveBtn') as HTMLButtonElement;
 const backBtn = document.getElementById('backBtn') as HTMLButtonElement;
 const newPromptBtn = document.getElementById('newPromptBtn') as HTMLButtonElement;
 const refreshBtn = document.getElementById('refreshBtn') as HTMLButtonElement;
@@ -23,6 +24,9 @@ const closeNewPromptBtn = document.getElementById('closeNewPromptBtn') as HTMLBu
 const newPromptInput = document.getElementById('newPromptInput') as HTMLInputElement;
 const createPromptBtn = document.getElementById('createPromptBtn') as HTMLButtonElement;
 const keyMappingsContainer = document.getElementById('keyMappings') as HTMLDivElement;
+const unsavedModal = document.getElementById('unsavedModal') as HTMLDivElement;
+const unsavedSaveBtn = document.getElementById('unsavedSaveBtn') as HTMLButtonElement;
+const unsavedDiscardBtn = document.getElementById('unsavedDiscardBtn') as HTMLButtonElement;
 
 let prompts: PromptFile[] = [];
 let folders: string[] = [];
@@ -30,6 +34,11 @@ let currentFolder: string | null = null;
 let currentFile: { path: string; name: string; content: string } | null = null;
 let focusedIndex = -1;
 let keyMappings: KeyMappings = {};
+
+function isDirty(): boolean {
+  if (!currentFile) return false;
+  return detailContent.value !== currentFile.content;
+}
 
 async function init(): Promise<void> {
   const dir = await window.api.getDirectory();
@@ -47,23 +56,33 @@ async function init(): Promise<void> {
   await loadPrompts();
 }
 
+function getKeyForFolder(folder: string): string | null {
+  for (const [key, mapped] of Object.entries(keyMappings)) {
+    if (mapped === folder) return key;
+  }
+  return null;
+}
+
 function renderFolderDropdown(): void {
-  folderDropdown.innerHTML = folders.map((folder, i) => `
+  folderDropdown.innerHTML = folders.map(folder => {
+    const key = getKeyForFolder(folder);
+    return `
     <div class="folder-option${folder === currentFolder ? ' active' : ''}" data-folder="${folder}">
-      <span class="folder-number">${i + 1}</span>
+      <span class="folder-number">${key || '-'}</span>
       <span>${escapeHtml(folder)}</span>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function updateDefaultFolderSelect(): void {
   const current = defaultFolderSelect.value;
-  defaultFolderSelect.innerHTML = '<option value="">Select default folder...</option>' +
+  defaultFolderSelect.innerHTML = '<option value="">select default folder...</option>' +
     folders.map(f => `<option value="${f}"${f === current ? ' selected' : ''}>${f}</option>`).join('');
 }
 
 function updateFolderDisplay(): void {
-  folderNameEl.textContent = currentFolder || 'Select Folder';
+  folderNameEl.textContent = currentFolder || 'select folder';
 }
 
 function renderKeyMappings(): void {
@@ -75,7 +94,7 @@ function renderKeyMappings(): void {
       <div class="key-mapping-row">
         <span class="key-badge">${i}</span>
         <select class="key-mapping-select" data-key="${key}">
-          <option value="">Not assigned</option>
+          <option value="">not assigned</option>
           ${folders.map(f => `<option value="${f}"${f === selected ? ' selected' : ''}>${escapeHtml(f)}</option>`).join('')}
         </select>
       </div>
@@ -98,7 +117,7 @@ function renderPromptList(): void {
   if (!hasDir) {
     emptyState.style.display = 'flex';
     promptList.style.display = 'none';
-    emptyP.textContent = 'No prompts directory configured';
+    emptyP.textContent = 'no prompts directory configured';
     emptyBtn.style.display = 'block';
     return;
   }
@@ -106,7 +125,7 @@ function renderPromptList(): void {
   if (!currentFolder) {
     emptyState.style.display = 'flex';
     promptList.style.display = 'none';
-    emptyP.textContent = 'No folder selected';
+    emptyP.textContent = 'no folder selected';
     emptyBtn.style.display = 'none';
     return;
   }
@@ -114,7 +133,7 @@ function renderPromptList(): void {
   if (prompts.length === 0) {
     emptyState.style.display = 'flex';
     promptList.style.display = 'none';
-    emptyP.textContent = 'No prompts in this folder';
+    emptyP.textContent = 'no prompts in this folder';
     emptyBtn.style.display = 'none';
     return;
   }
@@ -129,7 +148,7 @@ function renderPromptList(): void {
         <div class="prompt-meta">${escapeHtml(p.name)}</div>
         <div class="prompt-preview">${escapeHtml(p.preview)}</div>
       </div>
-      <button class="copy-btn" data-copy-index="${i}" title="Copy content">
+      <button class="copy-btn" data-copy-index="${i}" title="copy">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
           <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -159,15 +178,32 @@ async function showDetail(filePath: string, fileName: string): Promise<void> {
   
   currentFile = { path: filePath, name: fileName, content };
   detailFilename.textContent = fileName;
-  detailContent.textContent = content;
+  detailContent.value = content;
   listContainer.classList.add('hidden');
   detailContainer.classList.remove('hidden');
+}
+
+async function saveCurrentFile(): Promise<boolean> {
+  if (!currentFile) return false;
+  const success = await window.api.writeFile(currentFile.path, detailContent.value);
+  if (success) {
+    currentFile.content = detailContent.value;
+  }
+  return success;
 }
 
 function hideDetail(): void {
   currentFile = null;
   listContainer.classList.remove('hidden');
   detailContainer.classList.add('hidden');
+}
+
+function tryHideDetail(): void {
+  if (isDirty()) {
+    unsavedModal.classList.remove('hidden');
+  } else {
+    hideDetail();
+  }
 }
 
 async function copyContent(content: string, button: HTMLButtonElement | null): Promise<void> {
@@ -240,7 +276,7 @@ async function createNewPrompt(): Promise<void> {
     const newPrompt = prompts.find(p => p.path === result.path);
     if (newPrompt) await showDetail(result.path!, newPrompt.name);
   } else {
-    alert(result.error || 'Failed to create prompt');
+    alert(result.error || 'failed to create prompt');
   }
 }
 
@@ -294,8 +330,25 @@ promptList.addEventListener('click', async (e) => {
   }
 });
 
-backBtn.addEventListener('click', hideDetail);
-detailCopyBtn.addEventListener('click', async () => { if (currentFile) await copyContent(currentFile.content, detailCopyBtn); });
+backBtn.addEventListener('click', tryHideDetail);
+detailSaveBtn.addEventListener('click', saveCurrentFile);
+detailCopyBtn.addEventListener('click', async () => { if (currentFile) await copyContent(detailContent.value, detailCopyBtn); });
+
+unsavedSaveBtn.addEventListener('click', async () => {
+  await saveCurrentFile();
+  unsavedModal.classList.add('hidden');
+  hideDetail();
+});
+
+unsavedDiscardBtn.addEventListener('click', () => {
+  unsavedModal.classList.add('hidden');
+  hideDetail();
+});
+
+unsavedModal.addEventListener('click', (e) => {
+  if (e.target === unsavedModal) unsavedModal.classList.add('hidden');
+});
+
 newPromptBtn.addEventListener('click', openNewPromptModal);
 closeNewPromptBtn.addEventListener('click', closeNewPromptModal);
 createPromptBtn.addEventListener('click', createNewPrompt);
@@ -321,13 +374,24 @@ keyMappingsContainer.addEventListener('change', async (e) => {
 
 document.addEventListener('keydown', async (e) => {
   const target = e.target as HTMLElement;
-  if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+  
+  // Handle Cmd+S in detail view (even in textarea)
+  if (e.metaKey && e.key === 's' && !detailContainer.classList.contains('hidden')) {
+    e.preventDefault();
+    await saveCurrentFile();
+    return;
+  }
+  
+  // Don't handle other shortcuts if in textarea (except Escape)
+  if (target.tagName === 'TEXTAREA' && e.key !== 'Escape') return;
+  if (target.tagName === 'INPUT') return;
   
   if (e.key === 'Escape') {
-    if (!newPromptModal.classList.contains('hidden')) closeNewPromptModal();
+    if (!unsavedModal.classList.contains('hidden')) unsavedModal.classList.add('hidden');
+    else if (!newPromptModal.classList.contains('hidden')) closeNewPromptModal();
     else if (!settingsModal.classList.contains('hidden')) closeSettings();
     else if (!folderDropdown.classList.contains('hidden')) closeFolderDropdown();
-    else if (!detailContainer.classList.contains('hidden')) hideDetail();
+    else if (!detailContainer.classList.contains('hidden')) tryHideDetail();
     return;
   }
   
@@ -339,7 +403,7 @@ document.addEventListener('keydown', async (e) => {
   
   if (!detailContainer.classList.contains('hidden')) return;
   
-  if (e.key >= '1' && e.key <= '9' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+  if (e.key >= '1' && e.key <= '9' && e.metaKey) {
     e.preventDefault();
     await switchToFolderByKey(e.key);
     return;

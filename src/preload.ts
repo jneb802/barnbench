@@ -28,6 +28,7 @@ export interface BarnBenchAPI {
   setKeyMappings: (mappings: KeyMappings) => Promise<KeyMappings>;
   readPrompts: (folder: string) => Promise<PromptFile[]>;
   readFile: (path: string) => Promise<string | null>;
+  writeFile: (path: string, content: string) => Promise<boolean>;
   createPrompt: (folder: string, filename: string) => Promise<CreatePromptResult>;
   copyToClipboard: (text: string) => Promise<void>;
 }
@@ -42,6 +43,7 @@ contextBridge.exposeInMainWorld('api', {
   setKeyMappings: (mappings: KeyMappings) => ipcRenderer.invoke('set-key-mappings', mappings),
   readPrompts: (folder: string) => ipcRenderer.invoke('read-prompts', folder),
   readFile: (path: string) => ipcRenderer.invoke('read-file', path),
+  writeFile: (path: string, content: string) => ipcRenderer.invoke('write-file', path, content),
   createPrompt: (folder: string, filename: string) => ipcRenderer.invoke('create-prompt', folder, filename),
   copyToClipboard: (text: string) => navigator.clipboard.writeText(text)
 } as BarnBenchAPI);

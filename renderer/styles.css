@@ -346,6 +346,12 @@ body {
   font-size: 14px;
 }
 
+.detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .detail-content {
   flex: 1;
   overflow-y: auto;
@@ -357,6 +363,14 @@ body {
   word-wrap: break-word;
   color: var(--text-primary);
   background: var(--bg-primary);
+  border: none;
+  outline: none;
+  resize: none;
+  width: 100%;
+}
+
+.detail-content:focus {
+  background: var(--bg-secondary);
 }
 
 /* Modal */
@@ -421,6 +435,12 @@ body {
 
 .modal-body {
   padding: 20px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .setting-label {

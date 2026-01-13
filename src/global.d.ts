@@ -26,6 +26,7 @@ interface BarnBenchAPI {
   setKeyMappings: (mappings: KeyMappings) => Promise<KeyMappings>;
   readPrompts: (folder: string) => Promise<PromptFile[]>;
   readFile: (path: string) => Promise<string | null>;
+  writeFile: (path: string, content: string) => Promise<boolean>;
   createPrompt: (folder: string, filename: string) => Promise<CreatePromptResult>;
   copyToClipboard: (text: string) => Promise<void>;
 }
