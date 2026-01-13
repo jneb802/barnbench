@@ -75,8 +75,14 @@ body {
   letter-spacing: 0.02em;
 }
 
-.settings-btn {
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   -webkit-app-region: no-drag;
+}
+
+.icon-btn {
   background: transparent;
   border: none;
   color: var(--text-secondary);
@@ -89,7 +95,7 @@ body {
   justify-content: center;
 }
 
-.settings-btn:hover {
+.icon-btn:hover {
   background: var(--bg-tertiary);
   color: var(--text-primary);
 }

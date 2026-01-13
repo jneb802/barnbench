@@ -8,6 +8,7 @@ const detailFilename = document.getElementById('detailFilename');
 const detailContent = document.getElementById('detailContent');
 const detailCopyBtn = document.getElementById('detailCopyBtn');
 const backBtn = document.getElementById('backBtn');
+const refreshBtn = document.getElementById('refreshBtn');
 const settingsBtn = document.getElementById('settingsBtn');
 const settingsModal = document.getElementById('settingsModal');
 const closeSettingsBtn = document.getElementById('closeSettingsBtn');
@@ -180,6 +181,9 @@ detailCopyBtn.addEventListener('click', async () => {
   }
 });
 
+// Refresh button
+refreshBtn.addEventListener('click', loadPrompts);
+
 // Settings button
 settingsBtn.addEventListener('click', openSettings);
 
@@ -214,6 +218,12 @@ document.addEventListener('keydown', (e) => {
   if (e.key === ',' && e.metaKey) {
     e.preventDefault();
     openSettings();
+  }
+  
+  // Cmd+R to refresh
+  if (e.key === 'r' && e.metaKey) {
+    e.preventDefault();
+    loadPrompts();
   }
 });
 
