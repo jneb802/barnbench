@@ -4,42 +4,30 @@ const fs = require('fs');
 const Store = require('electron-store');
 
 const store = new Store();
-
 let mainWindow;
 
-// Parse YAML frontmatter from markdown content
 function parseFrontmatter(content) {
   const result = { body: content };
-  
-  if (!content.startsWith('---')) {
-    return result;
-  }
+  if (!content.startsWith('---')) return result;
   
   const endIndex = content.indexOf('---', 3);
-  if (endIndex === -1) {
-    return result;
-  }
+  if (endIndex === -1) return result;
   
   const frontmatterStr = content.substring(3, endIndex).trim();
   result.body = content.substring(endIndex + 3).trim();
   
-  // Simple YAML parsing for our use case
-  const lines = frontmatterStr.split('\n');
-  for (const line of lines) {
+  for (const line of frontmatterStr.split('\n')) {
     const colonIndex = line.indexOf(':');
     if (colonIndex === -1) continue;
     
     const key = line.substring(0, colonIndex).trim();
     let value = line.substring(colonIndex + 1).trim();
     
-    // Parse arrays like [tag1, tag2]
     if (value.startsWith('[') && value.endsWith(']')) {
       value = value.slice(1, -1).split(',').map(v => v.trim());
     }
-    
     result[key] = value;
   }
-  
   return result;
 }
 
@@ -58,146 +46,94 @@ function createWindow() {
       nodeIntegration: false
     }
   });
-
   mainWindow.loadFile('renderer/index.html');
 }
 
 app.whenReady().then(() => {
   createWindow();
-
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  if (process.platform !== 'darwin') app.quit();
 });
+
 
 // IPC Handlers
 
-// Get stored root directory path
-ipcMain.handle('get-directory', () => {
-  return store.get('promptsDirectory', '');
-});
+ipcMain.handle('get-directory', () => store.get('promptsDirectory', ''));
+ipcMain.handle('get-default-folder', () => store.get('defaultFolder', ''));
+ipcMain.handle('set-default-folder', (_, folder) => { store.set('defaultFolder', folder); return folder; });
+ipcMain.handle('get-key-mappings', () => store.get('keyMappings', {}));
+ipcMain.handle('set-key-mappings', (_, mappings) => { store.set('keyMappings', mappings); return mappings; });
 
-// Get stored default folder
-ipcMain.handle('get-default-folder', () => {
-  return store.get('defaultFolder', '');
-});
-
-// Set default folder
-ipcMain.handle('set-default-folder', async (event, folderName) => {
-  store.set('defaultFolder', folderName);
-  return folderName;
-});
-
-// Open directory picker dialog
 ipcMain.handle('pick-directory', async () => {
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory']
-  });
-  
+  const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });
   if (!result.canceled && result.filePaths.length > 0) {
-    const dirPath = result.filePaths[0];
-    store.set('promptsDirectory', dirPath);
-    return dirPath;
+    store.set('promptsDirectory', result.filePaths[0]);
+    return result.filePaths[0];
   }
   return null;
 });
 
-// List subfolders in root directory
-ipcMain.handle('list-folders', async () => {
+ipcMain.handle('list-folders', () => {
   const rootDir = store.get('promptsDirectory', '');
-  
-  if (!rootDir || !fs.existsSync(rootDir)) {
-    return [];
-  }
+  if (!rootDir || !fs.existsSync(rootDir)) return [];
   
   try {
-    const folders = fs.readdirSync(rootDir)
+    return fs.readdirSync(rootDir)
       .filter(name => {
         const fullPath = path.join(rootDir, name);
         return fs.statSync(fullPath).isDirectory() && !name.startsWith('.');
       })
-      .slice(0, 9); // Max 9 folders for number key nav
-    
-    return folders;
-  } catch (error) {
-    console.error('Error listing folders:', error);
+      .slice(0, 9);
+  } catch (e) {
     return [];
   }
 });
 
-// Read all markdown files from a specific folder
-ipcMain.handle('read-prompts', async (event, folderName) => {
+ipcMain.handle('read-prompts', (_, folderName) => {
   const rootDir = store.get('promptsDirectory', '');
-  
-  if (!rootDir || !fs.existsSync(rootDir) || !folderName) {
-    return [];
-  }
+  if (!rootDir || !folderName) return [];
   
   const dirPath = path.join(rootDir, folderName);
-  
-  if (!fs.existsSync(dirPath)) {
-    return [];
-  }
+  if (!fs.existsSync(dirPath)) return [];
 
   try {
-    const files = fs.readdirSync(dirPath)
+    return fs.readdirSync(dirPath)
       .filter(file => file.endsWith('.md') && file.toLowerCase() !== 'readme.md')
       .map(file => {
         const filePath = path.join(dirPath, file);
         const stats = fs.statSync(filePath);
         const content = fs.readFileSync(filePath, 'utf-8');
-        
-        // Parse frontmatter
         const frontmatter = parseFrontmatter(content);
-        const bodyContent = frontmatter.body;
-        const lines = bodyContent.split('\n').filter(l => l.trim());
-        const preview = lines.slice(0, 2).join('\n').substring(0, 200);
+        const lines = frontmatter.body.split('\n').filter(l => l.trim());
         
         return {
           name: file,
           title: frontmatter.title || file.replace('.md', ''),
-          status: frontmatter.status || null,
-          tags: frontmatter.tags || [],
           path: filePath,
-          preview: preview,
+          preview: lines.slice(0, 2).join('\n').substring(0, 200),
           mtime: stats.mtime.getTime()
         };
       })
-      .sort((a, b) => b.mtime - a.mtime); // Sort by most recently modified
-
-    return files;
-  } catch (error) {
-    console.error('Error reading prompts:', error);
+      .sort((a, b) => b.mtime - a.mtime);
+  } catch (e) {
     return [];
   }
 });
 
-// Create a new prompt file in current folder
-ipcMain.handle('create-prompt', async (event, folderName, filename) => {
+ipcMain.handle('create-prompt', (_, folderName, filename) => {
   const rootDir = store.get('promptsDirectory', '');
+  if (!rootDir || !folderName) return { success: false, error: 'No directory configured' };
   
-  if (!rootDir || !fs.existsSync(rootDir) || !folderName) {
-    return { success: false, error: 'No directory configured' };
-  }
-  
-  const dirPath = path.join(rootDir, folderName);
-  const filePath = path.join(dirPath, filename);
-  
-  if (fs.existsSync(filePath)) {
-    return { success: false, error: 'File already exists' };
-  }
+  const filePath = path.join(rootDir, folderName, filename);
+  if (fs.existsSync(filePath)) return { success: false, error: 'File already exists' };
   
   const today = new Date().toISOString().split('T')[0];
   const title = filename.replace('.md', '').replace(/-/g, ' ');
-  
   const template = `---
 title: ${title}
 tags: []
@@ -211,20 +147,15 @@ created: ${today}
   try {
     fs.writeFileSync(filePath, template, 'utf-8');
     return { success: true, path: filePath };
-  } catch (error) {
-    return { success: false, error: error.message };
+  } catch (e) {
+    return { success: false, error: e.message };
   }
 });
 
-// Read full content of a specific file
-ipcMain.handle('read-file', async (event, filePath) => {
+ipcMain.handle('read-file', (_, filePath) => {
   try {
-    if (fs.existsSync(filePath)) {
-      return fs.readFileSync(filePath, 'utf-8');
-    }
-    return null;
-  } catch (error) {
-    console.error('Error reading file:', error);
+    return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf-8') : null;
+  } catch (e) {
     return null;
   }
 });

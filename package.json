@@ -1,5 +1,6 @@
 {
   "name": "barnbench",
+  "productName": "BarnBench",
   "version": "1.0.0",
   "description": "A minimal macOS app for browsing and managing AI prompts stored as markdown files",
   "main": "main.js",

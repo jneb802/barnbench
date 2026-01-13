@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('api', {
   listFolders: () => ipcRenderer.invoke('list-folders'),
   getDefaultFolder: () => ipcRenderer.invoke('get-default-folder'),
   setDefaultFolder: (folderName) => ipcRenderer.invoke('set-default-folder', folderName),
+  getKeyMappings: () => ipcRenderer.invoke('get-key-mappings'),
+  setKeyMappings: (mappings) => ipcRenderer.invoke('set-key-mappings', mappings),
   
   // File operations
   readPrompts: (folderName) => ipcRenderer.invoke('read-prompts', folderName),

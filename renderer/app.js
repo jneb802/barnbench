@@ -19,6 +19,11 @@ const defaultFolderSelect = document.getElementById('defaultFolderSelect');
 const folderBtn = document.getElementById('folderBtn');
 const folderName = document.getElementById('folderName');
 const folderDropdown = document.getElementById('folderDropdown');
+const newPromptModal = document.getElementById('newPromptModal');
+const closeNewPromptBtn = document.getElementById('closeNewPromptBtn');
+const newPromptInput = document.getElementById('newPromptInput');
+const createPromptBtn = document.getElementById('createPromptBtn');
+const keyMappingsContainer = document.getElementById('keyMappings');
 
 // State
 let prompts = [];
@@ -26,11 +31,13 @@ let folders = [];
 let currentFolder = null;
 let currentFile = null;
 let focusedIndex = -1;
+let keyMappings = {}; // { '1': 'folderName', '2': 'folderName', ... }
 
 // Initialize app
 async function init() {
   await loadDirectory();
   await loadFolders();
+  await loadKeyMappings();
   
   // Load default folder or first available
   const defaultFolder = await window.api.getDefaultFolder();
@@ -42,6 +49,11 @@ async function init() {
   
   updateFolderDisplay();
   await loadPrompts();
+}
+
+// Load key mappings
+async function loadKeyMappings() {
+  keyMappings = await window.api.getKeyMappings() || {};
 }
 
 // Load directory from settings
@@ -77,6 +89,25 @@ function updateDefaultFolderSelect() {
 // Update folder display in header
 function updateFolderDisplay() {
   folderName.textContent = currentFolder || 'Select Folder';
+}
+
+// Render key mappings UI in settings
+function renderKeyMappings() {
+  let html = '';
+  for (let i = 1; i <= 9; i++) {
+    const key = String(i);
+    const selectedFolder = keyMappings[key] || '';
+    html += `
+      <div class="key-mapping-row">
+        <span class="key-badge">${i}</span>
+        <select class="key-mapping-select" data-key="${key}">
+          <option value="">Not assigned</option>
+          ${folders.map(f => `<option value="${f}"${f === selectedFolder ? ' selected' : ''}>${escapeHtml(f)}</option>`).join('')}
+        </select>
+      </div>
+    `;
+  }
+  keyMappingsContainer.innerHTML = html;
 }
 
 // Load prompts from current folder
@@ -223,11 +254,12 @@ async function openFocusedPrompt() {
   await showDetail(prompt.path, prompt.name);
 }
 
-// Switch to folder by index (0-8 for keys 1-9)
-async function switchToFolder(index) {
-  if (index < 0 || index >= folders.length) return;
+// Switch to folder by key (1-9)
+async function switchToFolderByKey(key) {
+  const folderName = keyMappings[key];
+  if (!folderName || !folders.includes(folderName)) return;
   
-  currentFolder = folders[index];
+  currentFolder = folderName;
   updateFolderDisplay();
   renderFolderDropdown();
   await loadPrompts();
@@ -249,6 +281,11 @@ async function openSettings() {
   // Load current default folder
   const defaultFolder = await window.api.getDefaultFolder();
   defaultFolderSelect.value = defaultFolder || '';
+  
+  // Render key mappings
+  await loadKeyMappings();
+  renderKeyMappings();
+  
   settingsModal.classList.remove('hidden');
 }
 
@@ -257,14 +294,27 @@ function closeSettings() {
   settingsModal.classList.add('hidden');
 }
 
-// Create new prompt
-async function createNewPrompt() {
+// Open new prompt modal
+function openNewPromptModal() {
   if (!currentFolder) {
     openSettings();
     return;
   }
   
-  const filename = prompt('Enter prompt filename (without .md):');
+  newPromptInput.value = '';
+  newPromptModal.classList.remove('hidden');
+  newPromptInput.focus();
+}
+
+// Close new prompt modal
+function closeNewPromptModal() {
+  newPromptModal.classList.add('hidden');
+  newPromptInput.value = '';
+}
+
+// Create new prompt from modal input
+async function createNewPrompt() {
+  const filename = newPromptInput.value.trim();
   if (!filename) return;
   
   // Convert to kebab-case and add .md
@@ -272,6 +322,7 @@ async function createNewPrompt() {
   
   const result = await window.api.createPrompt(currentFolder, sanitized);
   if (result.success) {
+    closeNewPromptModal();
     await loadPrompts();
     // Open the new file
     const newPrompt = prompts.find(p => p.path === result.path);
@@ -359,7 +410,20 @@ detailCopyBtn.addEventListener('click', async () => {
 });
 
 // New prompt button
-newPromptBtn.addEventListener('click', createNewPrompt);
+newPromptBtn.addEventListener('click', openNewPromptModal);
+
+// New prompt modal
+closeNewPromptBtn.addEventListener('click', closeNewPromptModal);
+createPromptBtn.addEventListener('click', createNewPrompt);
+newPromptModal.addEventListener('click', (e) => {
+  if (e.target === newPromptModal) closeNewPromptModal();
+});
+newPromptInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    createNewPrompt();
+  }
+});
 
 // Refresh button
 refreshBtn.addEventListener('click', loadPrompts);
@@ -385,6 +449,22 @@ defaultFolderSelect.addEventListener('change', async () => {
   await window.api.setDefaultFolder(defaultFolderSelect.value);
 });
 
+// Key mappings change
+keyMappingsContainer.addEventListener('change', async (e) => {
+  if (e.target.classList.contains('key-mapping-select')) {
+    const key = e.target.dataset.key;
+    const folder = e.target.value;
+    
+    if (folder) {
+      keyMappings[key] = folder;
+    } else {
+      delete keyMappings[key];
+    }
+    
+    await window.api.setKeyMappings(keyMappings);
+  }
+});
+
 // Empty state setup button
 emptySetupBtn.addEventListener('click', browseDirectory);
 
@@ -395,7 +475,9 @@ document.addEventListener('keydown', async (e) => {
   
   // Escape to close modal, dropdown, or go back
   if (e.key === 'Escape') {
-    if (!settingsModal.classList.contains('hidden')) {
+    if (!newPromptModal.classList.contains('hidden')) {
+      closeNewPromptModal();
+    } else if (!settingsModal.classList.contains('hidden')) {
       closeSettings();
     } else if (!folderDropdown.classList.contains('hidden')) {
       closeFolderDropdown();
@@ -422,7 +504,7 @@ document.addEventListener('keydown', async (e) => {
   // Cmd+N to create new prompt
   if (e.key === 'n' && e.metaKey) {
     e.preventDefault();
-    createNewPrompt();
+    openNewPromptModal();
     return;
   }
   
@@ -431,8 +513,7 @@ document.addEventListener('keydown', async (e) => {
     // Number keys 1-9 to switch folders
     if (e.key >= '1' && e.key <= '9' && !e.metaKey && !e.ctrlKey && !e.altKey) {
       e.preventDefault();
-      const folderIndex = parseInt(e.key) - 1;
-      await switchToFolder(folderIndex);
+      await switchToFolderByKey(e.key);
       return;
     }
     
