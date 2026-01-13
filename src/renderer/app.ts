@@ -294,9 +294,6 @@ async function browseDirectory(): Promise<void> {
   await loadPrompts();
 }
 
-
-// Event listeners
-
 folderBtn.addEventListener('click', toggleFolderDropdown);
 
 folderDropdown.addEventListener('click', async (e) => {
@@ -375,14 +372,12 @@ keyMappingsContainer.addEventListener('change', async (e) => {
 document.addEventListener('keydown', async (e) => {
   const target = e.target as HTMLElement;
   
-  // Handle Cmd+S in detail view (even in textarea)
-  if (e.metaKey && e.key === 's' && !detailContainer.classList.contains('hidden')) {
+if (e.metaKey && e.key === 's' && !detailContainer.classList.contains('hidden')) {
     e.preventDefault();
     await saveCurrentFile();
     return;
   }
   
-  // Don't handle other shortcuts if in textarea (except Escape)
   if (target.tagName === 'TEXTAREA' && e.key !== 'Escape') return;
   if (target.tagName === 'INPUT') return;
   

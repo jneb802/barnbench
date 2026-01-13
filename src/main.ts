@@ -78,9 +78,6 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-
-// IPC Handlers
-
 ipcMain.handle('get-directory', (): string => store.get('promptsDirectory', '') as string);
 ipcMain.handle('get-default-folder', (): string => store.get('defaultFolder', '') as string);
 ipcMain.handle('set-default-folder', (_: IpcMainInvokeEvent, folder: string): string => { store.set('defaultFolder', folder); return folder; });
