@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'">
+  <title>BarnBench</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Header with drag region -->
+    <header class="header">
+      <div class="drag-region"></div>
+      <div class="header-content">
+        <h1 class="app-title">BarnBench</h1>
+        <button class="settings-btn" id="settingsBtn" title="Settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main content area -->
+    <main class="main">
+      <!-- List view -->
+      <div class="list-container" id="listContainer">
+        <div class="empty-state" id="emptyState">
+          <p>No prompts directory configured</p>
+          <button class="btn-primary" id="emptySetupBtn">Choose Directory</button>
+        </div>
+        <div class="prompt-list" id="promptList"></div>
+      </div>
+
+      <!-- Detail view (hidden by default) -->
+      <div class="detail-container hidden" id="detailContainer">
+        <div class="detail-header">
+          <button class="back-btn" id="backBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            Back
+          </button>
+          <span class="detail-filename" id="detailFilename"></span>
+          <button class="copy-btn" id="detailCopyBtn" title="Copy content">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="detail-content" id="detailContent"></div>
+      </div>
+    </main>
+
+    <!-- Settings modal -->
+    <div class="modal-overlay hidden" id="settingsModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>Settings</h2>
+          <button class="close-btn" id="closeSettingsBtn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <label class="setting-label">Prompts Directory</label>
+          <div class="directory-picker">
+            <input type="text" class="directory-input" id="directoryInput" readonly placeholder="No directory selected">
+            <button class="btn-secondary" id="browseBtn">Browse</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
