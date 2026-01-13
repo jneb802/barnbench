@@ -8,6 +8,7 @@ const detailFilename = document.getElementById('detailFilename');
 const detailContent = document.getElementById('detailContent');
 const detailCopyBtn = document.getElementById('detailCopyBtn');
 const backBtn = document.getElementById('backBtn');
+const newPromptBtn = document.getElementById('newPromptBtn');
 const refreshBtn = document.getElementById('refreshBtn');
 const settingsBtn = document.getElementById('settingsBtn');
 const settingsModal = document.getElementById('settingsModal');
@@ -62,7 +63,8 @@ function renderPromptList() {
   promptList.innerHTML = prompts.map((prompt, index) => `
     <div class="prompt-item" data-index="${index}" data-path="${prompt.path}">
       <div class="prompt-content">
-        <div class="prompt-name">${escapeHtml(prompt.name)}</div>
+        <div class="prompt-title">${escapeHtml(prompt.title)}</div>
+        <div class="prompt-meta">${escapeHtml(prompt.name)}</div>
         <div class="prompt-preview">${escapeHtml(prompt.preview)}</div>
       </div>
       <button class="copy-btn" data-copy-index="${index}" title="Copy content">
@@ -135,6 +137,33 @@ function closeSettings() {
   settingsModal.classList.add('hidden');
 }
 
+// Create new prompt
+async function createNewPrompt() {
+  const hasDirectory = directoryInput.value.trim() !== '';
+  if (!hasDirectory) {
+    openSettings();
+    return;
+  }
+  
+  const filename = prompt('Enter prompt filename (without .md):');
+  if (!filename) return;
+  
+  // Convert to kebab-case and add .md
+  const sanitized = filename.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '.md';
+  
+  const result = await window.api.createPrompt(sanitized);
+  if (result.success) {
+    await loadPrompts();
+    // Open the new file
+    const newPrompt = prompts.find(p => p.path === result.path);
+    if (newPrompt) {
+      await showDetail(result.path, newPrompt.name);
+    }
+  } else {
+    alert(result.error || 'Failed to create prompt');
+  }
+}
+
 // Browse for directory
 async function browseDirectory() {
   const dir = await window.api.pickDirectory();
@@ -181,6 +210,9 @@ detailCopyBtn.addEventListener('click', async () => {
   }
 });
 
+// New prompt button
+newPromptBtn.addEventListener('click', createNewPrompt);
+
 // Refresh button
 refreshBtn.addEventListener('click', loadPrompts);
 
@@ -224,6 +256,12 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'r' && e.metaKey) {
     e.preventDefault();
     loadPrompts();
+  }
+  
+  // Cmd+N to create new prompt
+  if (e.key === 'n' && e.metaKey) {
+    e.preventDefault();
+    createNewPrompt();
   }
 });
 

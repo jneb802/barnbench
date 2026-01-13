@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('api', {
   // File operations
   readPrompts: () => ipcRenderer.invoke('read-prompts'),
   readFile: (filePath) => ipcRenderer.invoke('read-file', filePath),
+  createPrompt: (filename) => ipcRenderer.invoke('create-prompt', filename),
   
   // Clipboard
   copyToClipboard: (text) => navigator.clipboard.writeText(text)

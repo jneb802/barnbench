@@ -161,11 +161,18 @@ body {
   min-width: 0;
 }
 
-.prompt-name {
+.prompt-title {
   font-weight: 500;
   color: var(--text-primary);
-  margin-bottom: 6px;
   font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.prompt-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  font-family: var(--font-mono);
 }
 
 .prompt-preview {
