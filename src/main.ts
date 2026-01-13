@@ -1,13 +1,31 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
-const path = require('path');
-const fs = require('fs');
-const Store = require('electron-store');
+import { app, BrowserWindow, ipcMain, dialog, IpcMainInvokeEvent } from 'electron';
+import * as path from 'path';
+import * as fs from 'fs';
+import Store from 'electron-store';
+
+interface PromptFile {
+  name: string;
+  title: string;
+  path: string;
+  preview: string;
+  mtime: number;
+}
+
+interface Frontmatter {
+  body: string;
+  title?: string;
+  [key: string]: string | string[] | undefined;
+}
+
+interface KeyMappings {
+  [key: string]: string;
+}
 
 const store = new Store();
-let mainWindow;
+let mainWindow: BrowserWindow | null = null;
 
-function parseFrontmatter(content) {
-  const result = { body: content };
+function parseFrontmatter(content: string): Frontmatter {
+  const result: Frontmatter = { body: content };
   if (!content.startsWith('---')) return result;
   
   const endIndex = content.indexOf('---', 3);
@@ -21,7 +39,7 @@ function parseFrontmatter(content) {
     if (colonIndex === -1) continue;
     
     const key = line.substring(0, colonIndex).trim();
-    let value = line.substring(colonIndex + 1).trim();
+    let value: string | string[] = line.substring(colonIndex + 1).trim();
     
     if (value.startsWith('[') && value.endsWith(']')) {
       value = value.slice(1, -1).split(',').map(v => v.trim());
@@ -31,7 +49,7 @@ function parseFrontmatter(content) {
   return result;
 }
 
-function createWindow() {
+function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 900,
     height: 700,
@@ -46,7 +64,7 @@ function createWindow() {
       nodeIntegration: false
     }
   });
-  mainWindow.loadFile('renderer/index.html');
+  mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
 }
 
 app.whenReady().then(() => {
@@ -63,13 +81,14 @@ app.on('window-all-closed', () => {
 
 // IPC Handlers
 
-ipcMain.handle('get-directory', () => store.get('promptsDirectory', ''));
-ipcMain.handle('get-default-folder', () => store.get('defaultFolder', ''));
-ipcMain.handle('set-default-folder', (_, folder) => { store.set('defaultFolder', folder); return folder; });
-ipcMain.handle('get-key-mappings', () => store.get('keyMappings', {}));
-ipcMain.handle('set-key-mappings', (_, mappings) => { store.set('keyMappings', mappings); return mappings; });
+ipcMain.handle('get-directory', (): string => store.get('promptsDirectory', '') as string);
+ipcMain.handle('get-default-folder', (): string => store.get('defaultFolder', '') as string);
+ipcMain.handle('set-default-folder', (_: IpcMainInvokeEvent, folder: string): string => { store.set('defaultFolder', folder); return folder; });
+ipcMain.handle('get-key-mappings', (): KeyMappings => store.get('keyMappings', {}) as KeyMappings);
+ipcMain.handle('set-key-mappings', (_: IpcMainInvokeEvent, mappings: KeyMappings): KeyMappings => { store.set('keyMappings', mappings); return mappings; });
 
-ipcMain.handle('pick-directory', async () => {
+ipcMain.handle('pick-directory', async (): Promise<string | null> => {
+  if (!mainWindow) return null;
   const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });
   if (!result.canceled && result.filePaths.length > 0) {
     store.set('promptsDirectory', result.filePaths[0]);
@@ -78,8 +97,8 @@ ipcMain.handle('pick-directory', async () => {
   return null;
 });
 
-ipcMain.handle('list-folders', () => {
-  const rootDir = store.get('promptsDirectory', '');
+ipcMain.handle('list-folders', (): string[] => {
+  const rootDir = store.get('promptsDirectory', '') as string;
   if (!rootDir || !fs.existsSync(rootDir)) return [];
   
   try {
@@ -89,13 +108,13 @@ ipcMain.handle('list-folders', () => {
         return fs.statSync(fullPath).isDirectory() && !name.startsWith('.');
       })
       .slice(0, 9);
-  } catch (e) {
+  } catch {
     return [];
   }
 });
 
-ipcMain.handle('read-prompts', (_, folderName) => {
-  const rootDir = store.get('promptsDirectory', '');
+ipcMain.handle('read-prompts', (_: IpcMainInvokeEvent, folderName: string): PromptFile[] => {
+  const rootDir = store.get('promptsDirectory', '') as string;
   if (!rootDir || !folderName) return [];
   
   const dirPath = path.join(rootDir, folderName);
@@ -113,20 +132,20 @@ ipcMain.handle('read-prompts', (_, folderName) => {
         
         return {
           name: file,
-          title: frontmatter.title || file.replace('.md', ''),
+          title: (frontmatter.title as string) || file.replace('.md', ''),
           path: filePath,
           preview: lines.slice(0, 2).join('\n').substring(0, 200),
           mtime: stats.mtime.getTime()
         };
       })
       .sort((a, b) => b.mtime - a.mtime);
-  } catch (e) {
+  } catch {
     return [];
   }
 });
 
-ipcMain.handle('create-prompt', (_, folderName, filename) => {
-  const rootDir = store.get('promptsDirectory', '');
+ipcMain.handle('create-prompt', (_: IpcMainInvokeEvent, folderName: string, filename: string): { success: boolean; path?: string; error?: string } => {
+  const rootDir = store.get('promptsDirectory', '') as string;
   if (!rootDir || !folderName) return { success: false, error: 'No directory configured' };
   
   const filePath = path.join(rootDir, folderName, filename);
@@ -148,14 +167,14 @@ created: ${today}
     fs.writeFileSync(filePath, template, 'utf-8');
     return { success: true, path: filePath };
   } catch (e) {
-    return { success: false, error: e.message };
+    return { success: false, error: (e as Error).message };
   }
 });
 
-ipcMain.handle('read-file', (_, filePath) => {
+ipcMain.handle('read-file', (_: IpcMainInvokeEvent, filePath: string): string | null => {
   try {
     return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf-8') : null;
-  } catch (e) {
+  } catch {
     return null;
   }
 });
