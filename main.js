@@ -80,15 +80,20 @@ app.on('window-all-closed', () => {
 
 // IPC Handlers
 
-// Get stored directory path
+// Get stored root directory path
 ipcMain.handle('get-directory', () => {
   return store.get('promptsDirectory', '');
 });
 
-// Set directory path
-ipcMain.handle('set-directory', async (event, dirPath) => {
-  store.set('promptsDirectory', dirPath);
-  return dirPath;
+// Get stored default folder
+ipcMain.handle('get-default-folder', () => {
+  return store.get('defaultFolder', '');
+});
+
+// Set default folder
+ipcMain.handle('set-default-folder', async (event, folderName) => {
+  store.set('defaultFolder', folderName);
+  return folderName;
 });
 
 // Open directory picker dialog
@@ -105,11 +110,40 @@ ipcMain.handle('pick-directory', async () => {
   return null;
 });
 
-// Read all markdown files from directory, sorted by mtime
-ipcMain.handle('read-prompts', async () => {
-  const dirPath = store.get('promptsDirectory', '');
+// List subfolders in root directory
+ipcMain.handle('list-folders', async () => {
+  const rootDir = store.get('promptsDirectory', '');
   
-  if (!dirPath || !fs.existsSync(dirPath)) {
+  if (!rootDir || !fs.existsSync(rootDir)) {
+    return [];
+  }
+  
+  try {
+    const folders = fs.readdirSync(rootDir)
+      .filter(name => {
+        const fullPath = path.join(rootDir, name);
+        return fs.statSync(fullPath).isDirectory() && !name.startsWith('.');
+      })
+      .slice(0, 9); // Max 9 folders for number key nav
+    
+    return folders;
+  } catch (error) {
+    console.error('Error listing folders:', error);
+    return [];
+  }
+});
+
+// Read all markdown files from a specific folder
+ipcMain.handle('read-prompts', async (event, folderName) => {
+  const rootDir = store.get('promptsDirectory', '');
+  
+  if (!rootDir || !fs.existsSync(rootDir) || !folderName) {
+    return [];
+  }
+  
+  const dirPath = path.join(rootDir, folderName);
+  
+  if (!fs.existsSync(dirPath)) {
     return [];
   }
 
@@ -146,14 +180,15 @@ ipcMain.handle('read-prompts', async () => {
   }
 });
 
-// Create a new prompt file
-ipcMain.handle('create-prompt', async (event, filename) => {
-  const dirPath = store.get('promptsDirectory', '');
+// Create a new prompt file in current folder
+ipcMain.handle('create-prompt', async (event, folderName, filename) => {
+  const rootDir = store.get('promptsDirectory', '');
   
-  if (!dirPath || !fs.existsSync(dirPath)) {
+  if (!rootDir || !fs.existsSync(rootDir) || !folderName) {
     return { success: false, error: 'No directory configured' };
   }
   
+  const dirPath = path.join(rootDir, folderName);
   const filePath = path.join(dirPath, filename);
   
   if (fs.existsSync(filePath)) {

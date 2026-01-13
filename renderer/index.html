@@ -13,7 +13,15 @@
     <header class="header">
       <div class="drag-region"></div>
       <div class="header-content">
-        <h1 class="app-title">BarnBench</h1>
+        <div class="folder-selector" id="folderSelector">
+          <button class="folder-btn" id="folderBtn">
+            <span class="folder-name" id="folderName">Select Folder</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </button>
+          <div class="folder-dropdown hidden" id="folderDropdown"></div>
+        </div>
         <div class="header-actions">
           <button class="icon-btn" id="newPromptBtn" title="New Prompt">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -85,6 +93,11 @@
             <input type="text" class="directory-input" id="directoryInput" readonly placeholder="No directory selected">
             <button class="btn-secondary" id="browseBtn">Browse</button>
           </div>
+          
+          <label class="setting-label" style="margin-top: 16px;">Default Folder</label>
+          <select class="folder-select" id="defaultFolderSelect">
+            <option value="">Select default folder...</option>
+          </select>
         </div>
       </div>
     </div>
