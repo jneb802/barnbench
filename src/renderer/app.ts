@@ -31,6 +31,7 @@ const unsavedDiscardBtn = document.getElementById('unsavedDiscardBtn') as HTMLBu
 let prompts: PromptFile[] = [];
 let folders: string[] = [];
 let currentFolder: string | null = null;
+let defaultFolder: string = '';
 let currentFile: { path: string; name: string; content: string } | null = null;
 let focusedIndex = -1;
 let keyMappings: KeyMappings = {};
@@ -46,8 +47,7 @@ async function init(): Promise<void> {
   
   folders = await window.api.listFolders();
   keyMappings = await window.api.getKeyMappings() || {};
-  
-  const defaultFolder = await window.api.getDefaultFolder();
+  defaultFolder = await window.api.getDefaultFolder() || '';
   currentFolder = (defaultFolder && folders.includes(defaultFolder)) ? defaultFolder : folders[0] || null;
   
   renderFolderDropdown();
@@ -114,27 +114,16 @@ function renderPromptList(): void {
   const emptyP = emptyState.querySelector('p') as HTMLParagraphElement;
   const emptyBtn = emptyState.querySelector('button') as HTMLButtonElement;
   
-  if (!hasDir) {
-    emptyState.style.display = 'flex';
-    promptList.style.display = 'none';
-    emptyP.textContent = 'no prompts directory configured';
-    emptyBtn.style.display = 'block';
-    return;
-  }
+  const emptyMessage = !hasDir ? 'no prompts directory configured'
+    : !currentFolder ? 'no folder selected'
+    : prompts.length === 0 ? 'no prompts in this folder'
+    : null;
   
-  if (!currentFolder) {
+  if (emptyMessage) {
     emptyState.style.display = 'flex';
     promptList.style.display = 'none';
-    emptyP.textContent = 'no folder selected';
-    emptyBtn.style.display = 'none';
-    return;
-  }
-  
-  if (prompts.length === 0) {
-    emptyState.style.display = 'flex';
-    promptList.style.display = 'none';
-    emptyP.textContent = 'no prompts in this folder';
-    emptyBtn.style.display = 'none';
+    emptyP.textContent = emptyMessage;
+    emptyBtn.style.display = !hasDir ? 'block' : 'none';
     return;
   }
   
@@ -242,9 +231,8 @@ async function switchToFolderByKey(key: string): Promise<void> {
 function toggleFolderDropdown(): void { folderDropdown.classList.toggle('hidden'); }
 function closeFolderDropdown(): void { folderDropdown.classList.add('hidden'); }
 
-async function openSettings(): Promise<void> {
-  defaultFolderSelect.value = await window.api.getDefaultFolder() || '';
-  keyMappings = await window.api.getKeyMappings() || {};
+function openSettings(): void {
+  defaultFolderSelect.value = defaultFolder;
   renderKeyMappings();
   settingsModal.classList.remove('hidden');
 }
@@ -358,7 +346,10 @@ settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal)
 browseBtn.addEventListener('click', browseDirectory);
 emptySetupBtn.addEventListener('click', browseDirectory);
 
-defaultFolderSelect.addEventListener('change', () => window.api.setDefaultFolder(defaultFolderSelect.value));
+defaultFolderSelect.addEventListener('change', () => {
+  defaultFolder = defaultFolderSelect.value;
+  window.api.setDefaultFolder(defaultFolder);
+});
 
 keyMappingsContainer.addEventListener('change', async (e) => {
   const target = e.target as HTMLSelectElement;
@@ -372,7 +363,7 @@ keyMappingsContainer.addEventListener('change', async (e) => {
 document.addEventListener('keydown', async (e) => {
   const target = e.target as HTMLElement;
   
-if (e.metaKey && e.key === 's' && !detailContainer.classList.contains('hidden')) {
+  if (e.metaKey && e.key === 's' && !detailContainer.classList.contains('hidden')) {
     e.preventDefault();
     await saveCurrentFile();
     return;
