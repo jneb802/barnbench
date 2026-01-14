@@ -10,6 +10,10 @@ interface KeyMappings {
   [key: string]: string;
 }
 
+interface FolderMetadata {
+  projectPath?: string;
+}
+
 interface CreatePromptResult {
   success: boolean;
   path?: string;
@@ -29,6 +33,9 @@ interface BarnBenchAPI {
   writeFile: (path: string, content: string) => Promise<boolean>;
   createPrompt: (folder: string, filename: string) => Promise<CreatePromptResult>;
   copyToClipboard: (text: string) => Promise<void>;
+  getFolderMetadata: (folder: string) => Promise<FolderMetadata>;
+  setFolderMetadata: (folder: string, metadata: FolderMetadata) => Promise<boolean>;
+  openInCursor: (projectPath: string) => Promise<boolean>;
 }
 
 interface Window {

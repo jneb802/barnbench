@@ -12,6 +12,10 @@ export interface KeyMappings {
   [key: string]: string;
 }
 
+export interface FolderMetadata {
+  projectPath?: string;
+}
+
 export interface CreatePromptResult {
   success: boolean;
   path?: string;
@@ -31,6 +35,9 @@ export interface BarnBenchAPI {
   writeFile: (path: string, content: string) => Promise<boolean>;
   createPrompt: (folder: string, filename: string) => Promise<CreatePromptResult>;
   copyToClipboard: (text: string) => Promise<void>;
+  getFolderMetadata: (folder: string) => Promise<FolderMetadata>;
+  setFolderMetadata: (folder: string, metadata: FolderMetadata) => Promise<boolean>;
+  openInCursor: (projectPath: string) => Promise<boolean>;
 }
 
 contextBridge.exposeInMainWorld('api', {
@@ -45,5 +52,8 @@ contextBridge.exposeInMainWorld('api', {
   readFile: (path: string) => ipcRenderer.invoke('read-file', path),
   writeFile: (path: string, content: string) => ipcRenderer.invoke('write-file', path, content),
   createPrompt: (folder: string, filename: string) => ipcRenderer.invoke('create-prompt', folder, filename),
-  copyToClipboard: (text: string) => navigator.clipboard.writeText(text)
+  copyToClipboard: (text: string) => navigator.clipboard.writeText(text),
+  getFolderMetadata: (folder: string) => ipcRenderer.invoke('get-folder-metadata', folder),
+  setFolderMetadata: (folder: string, metadata: FolderMetadata) => ipcRenderer.invoke('set-folder-metadata', folder, metadata),
+  openInCursor: (projectPath: string) => ipcRenderer.invoke('open-in-cursor', projectPath)
 } as BarnBenchAPI);

@@ -28,6 +28,10 @@ const keyMappingsContainer = document.getElementById('keyMappings') as HTMLDivEl
 const unsavedModal = document.getElementById('unsavedModal') as HTMLDivElement;
 const unsavedSaveBtn = document.getElementById('unsavedSaveBtn') as HTMLButtonElement;
 const unsavedDiscardBtn = document.getElementById('unsavedDiscardBtn') as HTMLButtonElement;
+const openCursorBtn = document.getElementById('openCursorBtn') as HTMLButtonElement;
+const folderMetadataSection = document.getElementById('folderMetadataSection') as HTMLDivElement;
+const projectPathInput = document.getElementById('projectPathInput') as HTMLInputElement;
+const browseProjectBtn = document.getElementById('browseProjectBtn') as HTMLButtonElement;
 
 let prompts: PromptFile[] = [];
 let folders: string[] = [];
@@ -36,6 +40,7 @@ let defaultFolder: string = '';
 let currentFile: { path: string; name: string; content: string } | null = null;
 let focusedIndex = -1;
 let keyMappings: KeyMappings = {};
+let currentFolderMetadata: FolderMetadata = {};
 
 const SVG_ICONS = {
   file: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>',
@@ -140,6 +145,22 @@ async function loadPrompts(): Promise<void> {
   prompts = currentFolder ? await window.api.readPrompts(currentFolder) : [];
   focusedIndex = -1;
   renderPromptList();
+  await updateFolderMetadata();
+}
+
+async function updateFolderMetadata(): Promise<void> {
+  if (!currentFolder) {
+    currentFolderMetadata = {};
+    openCursorBtn.classList.add('hidden');
+    return;
+  }
+  
+  currentFolderMetadata = await window.api.getFolderMetadata(currentFolder);
+  if (currentFolderMetadata.projectPath) {
+    openCursorBtn.classList.remove('hidden');
+  } else {
+    openCursorBtn.classList.add('hidden');
+  }
 }
 
 function renderPromptList(): void {
@@ -270,9 +291,17 @@ async function switchToFolderByKey(key: string): Promise<void> {
 function toggleFolderDropdown(): void { folderDropdown.classList.toggle('hidden'); }
 function closeFolderDropdown(): void { hideModal(folderDropdown); }
 
-function openSettings(): void {
+async function openSettings(): Promise<void> {
   defaultFolderSelect.value = defaultFolder;
   renderKeyMappings();
+  
+  if (currentFolder) {
+    folderMetadataSection.style.display = 'block';
+    projectPathInput.value = currentFolderMetadata.projectPath || '';
+  } else {
+    folderMetadataSection.style.display = 'none';
+  }
+  
   showModal(settingsModal);
 }
 
@@ -319,6 +348,22 @@ async function browseDirectory(): Promise<void> {
   if (folders.length > 0) currentFolder = folders[0];
   updateFolderDisplay();
   await loadPrompts();
+}
+
+async function browseProjectPath(): Promise<void> {
+  if (!currentFolder) return;
+  const dir = await window.api.pickDirectory();
+  if (!dir) return;
+  
+  projectPathInput.value = dir;
+  currentFolderMetadata.projectPath = dir;
+  await window.api.setFolderMetadata(currentFolder, currentFolderMetadata);
+  await updateFolderMetadata();
+}
+
+async function openProjectInCursor(): Promise<void> {
+  if (!currentFolderMetadata.projectPath) return;
+  await window.api.openInCursor(currentFolderMetadata.projectPath);
 }
 
 folderBtn.addEventListener('click', toggleFolderDropdown);
@@ -386,7 +431,9 @@ addOverlayClose(settingsModal, closeSettings);
 addOverlayClose(newPromptModal, closeNewPromptModal);
 addOverlayClose(unsavedModal, () => hideModal(unsavedModal));
 browseBtn.addEventListener('click', browseDirectory);
+browseProjectBtn.addEventListener('click', browseProjectPath);
 emptySetupBtn.addEventListener('click', browseDirectory);
+openCursorBtn.addEventListener('click', openProjectInCursor);
 
 defaultFolderSelect.addEventListener('change', () => {
   defaultFolder = defaultFolderSelect.value;
@@ -437,6 +484,7 @@ document.addEventListener('keydown', async (e) => {
     if (e.key === ',') { e.preventDefault(); openSettings(); return; }
     if (e.key === 'r') { e.preventDefault(); await loadPrompts(); return; }
     if (e.key === 'n') { e.preventDefault(); openNewPromptModal(); return; }
+    if (e.key === 'o' && currentFolderMetadata.projectPath) { e.preventDefault(); openProjectInCursor(); return; }
   }
   
   if (!detailContainer.classList.contains('hidden')) return;

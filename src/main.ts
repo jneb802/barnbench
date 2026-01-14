@@ -21,6 +21,10 @@ interface KeyMappings {
   [key: string]: string;
 }
 
+interface FolderMetadata {
+  projectPath?: string;
+}
+
 const store = new Store();
 let mainWindow: BrowserWindow | null = null;
 
@@ -183,6 +187,28 @@ ipcMain.handle('read-file', (_: IpcMainInvokeEvent, filePath: string): string | 
 ipcMain.handle('write-file', (_: IpcMainInvokeEvent, filePath: string, content: string): boolean => {
   try {
     fs.writeFileSync(filePath, content, 'utf-8');
+    return true;
+  } catch {
+    return false;
+  }
+});
+
+ipcMain.handle('get-folder-metadata', (_: IpcMainInvokeEvent, folderName: string): FolderMetadata => {
+  const allMetadata = store.get('folderMetadata', {}) as Record<string, FolderMetadata>;
+  return allMetadata[folderName] || {};
+});
+
+ipcMain.handle('set-folder-metadata', (_: IpcMainInvokeEvent, folderName: string, metadata: FolderMetadata): boolean => {
+  const allMetadata = store.get('folderMetadata', {}) as Record<string, FolderMetadata>;
+  allMetadata[folderName] = metadata;
+  store.set('folderMetadata', allMetadata);
+  return true;
+});
+
+ipcMain.handle('open-in-cursor', (_: IpcMainInvokeEvent, projectPath: string): boolean => {
+  try {
+    const { spawn } = require('child_process');
+    spawn('cursor', [projectPath], { detached: true, stdio: 'ignore' }).unref();
     return true;
   } catch {
     return false;
