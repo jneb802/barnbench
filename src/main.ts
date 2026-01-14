@@ -24,6 +24,10 @@ interface KeyMappings {
 const store = new Store();
 let mainWindow: BrowserWindow | null = null;
 
+function getRootDir(): string {
+  return store.get('promptsDirectory', '') as string;
+}
+
 function parseFrontmatter(content: string): Frontmatter {
   const result: Frontmatter = { body: content };
   if (!content.startsWith('---')) return result;
@@ -95,7 +99,7 @@ ipcMain.handle('pick-directory', async (): Promise<string | null> => {
 });
 
 ipcMain.handle('list-folders', (): string[] => {
-  const rootDir = store.get('promptsDirectory', '') as string;
+  const rootDir = getRootDir();
   if (!rootDir || !fs.existsSync(rootDir)) return [];
   
   try {
@@ -111,7 +115,7 @@ ipcMain.handle('list-folders', (): string[] => {
 });
 
 ipcMain.handle('read-prompts', (_: IpcMainInvokeEvent, folderName: string): PromptFile[] => {
-  const rootDir = store.get('promptsDirectory', '') as string;
+  const rootDir = getRootDir();
   if (!rootDir || !folderName) return [];
   
   const dirPath = path.join(rootDir, folderName);
@@ -142,7 +146,7 @@ ipcMain.handle('read-prompts', (_: IpcMainInvokeEvent, folderName: string): Prom
 });
 
 ipcMain.handle('create-prompt', (_: IpcMainInvokeEvent, folderName: string, filename: string): { success: boolean; path?: string; error?: string } => {
-  const rootDir = store.get('promptsDirectory', '') as string;
+  const rootDir = getRootDir();
   if (!rootDir || !folderName) return { success: false, error: 'No directory configured' };
   
   const filePath = path.join(rootDir, folderName, filename);

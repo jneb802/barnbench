@@ -36,9 +36,35 @@ let currentFile: { path: string; name: string; content: string } | null = null;
 let focusedIndex = -1;
 let keyMappings: KeyMappings = {};
 
+function showModal(modal: HTMLElement): void {
+  modal.classList.remove('hidden');
+}
+
+function hideModal(modal: HTMLElement): void {
+  modal.classList.add('hidden');
+}
+
 function isDirty(): boolean {
   if (!currentFile) return false;
   return detailContent.value !== currentFile.content;
+}
+
+function isFocusedValid(): boolean {
+  return focusedIndex >= 0 && focusedIndex < prompts.length;
+}
+
+function getFocusedPrompt(): PromptFile | null {
+  return isFocusedValid() ? prompts[focusedIndex] : null;
+}
+
+function renderOption(value: string, label: string, selected: boolean): string {
+  return `<option value="${value}"${selected ? ' selected' : ''}>${label}</option>`;
+}
+
+function addOverlayClose(modal: HTMLElement, closeFn: () => void): void {
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeFn();
+  });
 }
 
 async function init(): Promise<void> {
@@ -78,7 +104,7 @@ function renderFolderDropdown(): void {
 function updateDefaultFolderSelect(): void {
   const current = defaultFolderSelect.value;
   defaultFolderSelect.innerHTML = '<option value="">select default folder...</option>' +
-    folders.map(f => `<option value="${f}"${f === current ? ' selected' : ''}>${f}</option>`).join('');
+    folders.map(f => renderOption(f, f, f === current)).join('');
 }
 
 function updateFolderDisplay(): void {
@@ -95,7 +121,7 @@ function renderKeyMappings(): void {
         <span class="key-badge">${i}</span>
         <select class="key-mapping-select" data-key="${key}">
           <option value="">not assigned</option>
-          ${folders.map(f => `<option value="${f}"${f === selected ? ' selected' : ''}>${escapeHtml(f)}</option>`).join('')}
+          ${folders.map(f => renderOption(f, escapeHtml(f), f === selected)).join('')}
         </select>
       </div>
     `;
@@ -189,7 +215,7 @@ function hideDetail(): void {
 
 function tryHideDetail(): void {
   if (isDirty()) {
-    unsavedModal.classList.remove('hidden');
+    showModal(unsavedModal);
   } else {
     hideDetail();
   }
@@ -206,21 +232,19 @@ async function copyContent(content: string, button: HTMLButtonElement | null): P
 }
 
 async function copyFocusedPrompt(): Promise<void> {
-  if (focusedIndex < 0 || focusedIndex >= prompts.length) return;
-  const p = prompts[focusedIndex];
+  const p = getFocusedPrompt();
+  if (!p) return;
   const content = await window.api.readFile(p.path);
   if (content) await copyContent(content, promptList.querySelector(`[data-copy-index="${focusedIndex}"]`));
 }
 
 async function openFocusedPrompt(): Promise<void> {
-  if (focusedIndex < 0 || focusedIndex >= prompts.length) return;
-  const p = prompts[focusedIndex];
+  const p = getFocusedPrompt();
+  if (!p) return;
   await showDetail(p.path, p.name);
 }
 
-async function switchToFolderByKey(key: string): Promise<void> {
-  const folder = keyMappings[key];
-  if (!folder || !folders.includes(folder)) return;
+async function switchFolder(folder: string): Promise<void> {
   currentFolder = folder;
   updateFolderDisplay();
   renderFolderDropdown();
@@ -228,26 +252,32 @@ async function switchToFolderByKey(key: string): Promise<void> {
   closeFolderDropdown();
 }
 
+async function switchToFolderByKey(key: string): Promise<void> {
+  const folder = keyMappings[key];
+  if (!folder || !folders.includes(folder)) return;
+  await switchFolder(folder);
+}
+
 function toggleFolderDropdown(): void { folderDropdown.classList.toggle('hidden'); }
-function closeFolderDropdown(): void { folderDropdown.classList.add('hidden'); }
+function closeFolderDropdown(): void { hideModal(folderDropdown); }
 
 function openSettings(): void {
   defaultFolderSelect.value = defaultFolder;
   renderKeyMappings();
-  settingsModal.classList.remove('hidden');
+  showModal(settingsModal);
 }
 
-function closeSettings(): void { settingsModal.classList.add('hidden'); }
+function closeSettings(): void { hideModal(settingsModal); }
 
 function openNewPromptModal(): void {
   if (!currentFolder) { openSettings(); return; }
   newPromptInput.value = '';
-  newPromptModal.classList.remove('hidden');
+  showModal(newPromptModal);
   newPromptInput.focus();
 }
 
 function closeNewPromptModal(): void {
-  newPromptModal.classList.add('hidden');
+  hideModal(newPromptModal);
   newPromptInput.value = '';
 }
 
@@ -287,11 +317,7 @@ folderBtn.addEventListener('click', toggleFolderDropdown);
 folderDropdown.addEventListener('click', async (e) => {
   const option = (e.target as HTMLElement).closest('.folder-option') as HTMLElement | null;
   if (!option) return;
-  currentFolder = option.dataset.folder!;
-  updateFolderDisplay();
-  renderFolderDropdown();
-  await loadPrompts();
-  closeFolderDropdown();
+  await switchFolder(option.dataset.folder!);
 });
 
 document.addEventListener('click', (e) => {
@@ -321,28 +347,26 @@ detailCopyBtn.addEventListener('click', async () => { if (currentFile) await cop
 
 unsavedSaveBtn.addEventListener('click', async () => {
   await saveCurrentFile();
-  unsavedModal.classList.add('hidden');
+  hideModal(unsavedModal);
   hideDetail();
 });
 
 unsavedDiscardBtn.addEventListener('click', () => {
-  unsavedModal.classList.add('hidden');
+  hideModal(unsavedModal);
   hideDetail();
-});
-
-unsavedModal.addEventListener('click', (e) => {
-  if (e.target === unsavedModal) unsavedModal.classList.add('hidden');
 });
 
 newPromptBtn.addEventListener('click', openNewPromptModal);
 closeNewPromptBtn.addEventListener('click', closeNewPromptModal);
 createPromptBtn.addEventListener('click', createNewPrompt);
-newPromptModal.addEventListener('click', (e) => { if (e.target === newPromptModal) closeNewPromptModal(); });
 newPromptInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); createNewPrompt(); } });
 refreshBtn.addEventListener('click', loadPrompts);
 settingsBtn.addEventListener('click', openSettings);
 closeSettingsBtn.addEventListener('click', closeSettings);
-settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) closeSettings(); });
+
+addOverlayClose(settingsModal, closeSettings);
+addOverlayClose(newPromptModal, closeNewPromptModal);
+addOverlayClose(unsavedModal, () => hideModal(unsavedModal));
 browseBtn.addEventListener('click', browseDirectory);
 emptySetupBtn.addEventListener('click', browseDirectory);
 
@@ -373,11 +397,15 @@ document.addEventListener('keydown', async (e) => {
   if (target.tagName === 'INPUT') return;
   
   if (e.key === 'Escape') {
-    if (!unsavedModal.classList.contains('hidden')) unsavedModal.classList.add('hidden');
-    else if (!newPromptModal.classList.contains('hidden')) closeNewPromptModal();
-    else if (!settingsModal.classList.contains('hidden')) closeSettings();
-    else if (!folderDropdown.classList.contains('hidden')) closeFolderDropdown();
-    else if (!detailContainer.classList.contains('hidden')) tryHideDetail();
+    const modalsInPriority = [
+      { el: unsavedModal, close: () => hideModal(unsavedModal) },
+      { el: newPromptModal, close: closeNewPromptModal },
+      { el: settingsModal, close: closeSettings },
+      { el: folderDropdown, close: closeFolderDropdown },
+      { el: detailContainer, close: tryHideDetail }
+    ];
+    const openModal = modalsInPriority.find(m => !m.el.classList.contains('hidden'));
+    if (openModal) openModal.close();
     return;
   }
   
