@@ -6,6 +6,7 @@ const detailContainer = document.getElementById('detailContainer') as HTMLDivEle
 const detailFilename = document.getElementById('detailFilename') as HTMLSpanElement;
 const detailContent = document.getElementById('detailContent') as HTMLTextAreaElement;
 const detailCopyBtn = document.getElementById('detailCopyBtn') as HTMLButtonElement;
+const detailCopyPathBtn = document.getElementById('detailCopyPathBtn') as HTMLButtonElement;
 const detailSaveBtn = document.getElementById('detailSaveBtn') as HTMLButtonElement;
 const backBtn = document.getElementById('backBtn') as HTMLButtonElement;
 const newPromptBtn = document.getElementById('newPromptBtn') as HTMLButtonElement;
@@ -163,12 +164,20 @@ function renderPromptList(): void {
         <div class="prompt-meta">${escapeHtml(p.name)}</div>
         <div class="prompt-preview">${escapeHtml(p.preview)}</div>
       </div>
-      <button class="copy-btn" data-copy-index="${i}" title="copy">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-        </svg>
-      </button>
+      <div class="prompt-actions">
+        <button class="copy-path-btn" data-path-index="${i}" title="copy file path">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+            <polyline points="13 2 13 9 20 9"></polyline>
+          </svg>
+        </button>
+        <button class="copy-btn" data-copy-index="${i}" title="copy content">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+        </button>
+      </div>
     </div>
   `).join('');
 }
@@ -221,7 +230,7 @@ function tryHideDetail(): void {
   }
 }
 
-async function copyContent(content: string, button: HTMLButtonElement | null): Promise<void> {
+async function copyToClipboardWithFeedback(content: string, button: HTMLButtonElement | null): Promise<void> {
   await window.api.copyToClipboard(content);
   if (!button) return;
   
@@ -235,7 +244,7 @@ async function copyFocusedPrompt(): Promise<void> {
   const p = getFocusedPrompt();
   if (!p) return;
   const content = await window.api.readFile(p.path);
-  if (content) await copyContent(content, promptList.querySelector(`[data-copy-index="${focusedIndex}"]`));
+  if (content) await copyToClipboardWithFeedback(content, promptList.querySelector(`[data-copy-index="${focusedIndex}"]`));
 }
 
 async function openFocusedPrompt(): Promise<void> {
@@ -325,12 +334,20 @@ document.addEventListener('click', (e) => {
 });
 
 promptList.addEventListener('click', async (e) => {
+  const copyPathBtn = (e.target as HTMLElement).closest('.copy-path-btn') as HTMLButtonElement | null;
+  if (copyPathBtn) {
+    e.stopPropagation();
+    const p = prompts[parseInt(copyPathBtn.dataset.pathIndex!)];
+    await copyToClipboardWithFeedback(p.path, copyPathBtn);
+    return;
+  }
+  
   const copyBtn = (e.target as HTMLElement).closest('.copy-btn') as HTMLButtonElement | null;
   if (copyBtn) {
     e.stopPropagation();
     const p = prompts[parseInt(copyBtn.dataset.copyIndex!)];
     const content = await window.api.readFile(p.path);
-    if (content) await copyContent(content, copyBtn);
+    if (content) await copyToClipboardWithFeedback(content, copyBtn);
     return;
   }
   
@@ -343,7 +360,8 @@ promptList.addEventListener('click', async (e) => {
 
 backBtn.addEventListener('click', tryHideDetail);
 detailSaveBtn.addEventListener('click', saveCurrentFile);
-detailCopyBtn.addEventListener('click', async () => { if (currentFile) await copyContent(detailContent.value, detailCopyBtn); });
+detailCopyPathBtn.addEventListener('click', async () => { if (currentFile) await copyToClipboardWithFeedback(currentFile.path, detailCopyPathBtn); });
+detailCopyBtn.addEventListener('click', async () => { if (currentFile) await copyToClipboardWithFeedback(detailContent.value, detailCopyBtn); });
 
 unsavedSaveBtn.addEventListener('click', async () => {
   await saveCurrentFile();
@@ -390,6 +408,12 @@ document.addEventListener('keydown', async (e) => {
   if (e.metaKey && e.key === 's' && !detailContainer.classList.contains('hidden')) {
     e.preventDefault();
     await saveCurrentFile();
+    return;
+  }
+  
+  if (e.metaKey && e.key === 'p' && !detailContainer.classList.contains('hidden')) {
+    e.preventDefault();
+    if (currentFile) await copyToClipboardWithFeedback(currentFile.path, detailCopyPathBtn);
     return;
   }
   

@@ -264,7 +264,13 @@ body {
   white-space: pre-wrap;
 }
 
-.copy-btn {
+.prompt-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.copy-btn, .copy-path-btn {
   background: transparent;
   border: none;
   color: var(--text-muted);
@@ -278,12 +284,12 @@ body {
   flex-shrink: 0;
 }
 
-.copy-btn:hover {
+.copy-btn:hover, .copy-path-btn:hover {
   background: var(--bg-active);
   color: var(--text-primary);
 }
 
-.copy-btn.copied {
+.copy-btn.copied, .copy-path-btn.copied {
   color: var(--success);
 }
 
