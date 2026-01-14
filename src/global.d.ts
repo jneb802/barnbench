@@ -1,4 +1,4 @@
-interface PromptFile {
+interface MarkdownFile {
   name: string;
   title: string;
   path: string;
@@ -6,35 +6,38 @@ interface PromptFile {
   mtime: number;
 }
 
+interface Directory {
+  name: string;
+  markdownPath: string;
+  projectPath?: string;
+}
+
 interface KeyMappings {
   [key: string]: string;
 }
 
-interface FolderMetadata {
-  projectPath?: string;
-}
-
-interface CreatePromptResult {
+interface CreateFileResult {
   success: boolean;
   path?: string;
   error?: string;
 }
 
 interface BarnBenchAPI {
-  getDirectory: () => Promise<string>;
-  pickDirectory: () => Promise<string | null>;
-  listFolders: () => Promise<string[]>;
-  getDefaultFolder: () => Promise<string>;
-  setDefaultFolder: (folder: string) => Promise<string>;
+  getDirectories: () => Promise<Directory[]>;
+  addDirectory: (dir: Directory) => Promise<boolean>;
+  removeDirectory: (name: string) => Promise<boolean>;
+  updateDirectory: (name: string, dir: Directory) => Promise<boolean>;
+  getDefaultDirectory: () => Promise<string>;
+  setDefaultDirectory: (name: string) => Promise<string>;
   getKeyMappings: () => Promise<KeyMappings>;
   setKeyMappings: (mappings: KeyMappings) => Promise<KeyMappings>;
-  readPrompts: (folder: string) => Promise<PromptFile[]>;
+  pickDirectory: () => Promise<string | null>;
+  readDirectory: (dirPath: string) => Promise<MarkdownFile[]>;
   readFile: (path: string) => Promise<string | null>;
   writeFile: (path: string, content: string) => Promise<boolean>;
-  createPrompt: (folder: string, filename: string) => Promise<CreatePromptResult>;
+  createFile: (dirPath: string, filename: string) => Promise<CreateFileResult>;
   copyToClipboard: (text: string) => Promise<void>;
-  getFolderMetadata: (folder: string) => Promise<FolderMetadata>;
-  setFolderMetadata: (folder: string, metadata: FolderMetadata) => Promise<boolean>;
+  renderMarkdown: (content: string) => Promise<string>;
   openInCursor: (projectPath: string) => Promise<boolean>;
 }
 

@@ -2,13 +2,21 @@ import { app, BrowserWindow, ipcMain, dialog, IpcMainInvokeEvent } from 'electro
 import * as path from 'path';
 import * as fs from 'fs';
 import Store from 'electron-store';
+const MarkdownIt = require('markdown-it');
+const hljs = require('highlight.js');
 
-interface PromptFile {
+interface MarkdownFile {
   name: string;
   title: string;
   path: string;
   preview: string;
   mtime: number;
+}
+
+interface Directory {
+  name: string;
+  markdownPath: string;
+  projectPath?: string;
 }
 
 interface Frontmatter {
@@ -21,16 +29,22 @@ interface KeyMappings {
   [key: string]: string;
 }
 
-interface FolderMetadata {
-  projectPath?: string;
-}
-
 const store = new Store();
 let mainWindow: BrowserWindow | null = null;
 
-function getRootDir(): string {
-  return store.get('promptsDirectory', '') as string;
-}
+const md = new MarkdownIt({
+  html: false,
+  breaks: true,
+  linkify: true,
+  highlight: (str: string, lang: string) => {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return hljs.highlight(str, { language: lang }).value;
+      } catch {}
+    }
+    return '';
+  }
+});
 
 function parseFrontmatter(content: string): Frontmatter {
   const result: Frontmatter = { body: content };
@@ -86,44 +100,60 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-ipcMain.handle('get-directory', (): string => store.get('promptsDirectory', '') as string);
-ipcMain.handle('get-default-folder', (): string => store.get('defaultFolder', '') as string);
-ipcMain.handle('set-default-folder', (_: IpcMainInvokeEvent, folder: string): string => { store.set('defaultFolder', folder); return folder; });
-ipcMain.handle('get-key-mappings', (): KeyMappings => store.get('keyMappings', {}) as KeyMappings);
-ipcMain.handle('set-key-mappings', (_: IpcMainInvokeEvent, mappings: KeyMappings): KeyMappings => { store.set('keyMappings', mappings); return mappings; });
+ipcMain.handle('get-directories', (): Directory[] => {
+  return store.get('directories', []) as Directory[];
+});
+
+ipcMain.handle('add-directory', (_: IpcMainInvokeEvent, dir: Directory): boolean => {
+  const dirs = store.get('directories', []) as Directory[];
+  dirs.push(dir);
+  store.set('directories', dirs);
+  return true;
+});
+
+ipcMain.handle('remove-directory', (_: IpcMainInvokeEvent, name: string): boolean => {
+  const dirs = (store.get('directories', []) as Directory[]).filter(d => d.name !== name);
+  store.set('directories', dirs);
+  return true;
+});
+
+ipcMain.handle('update-directory', (_: IpcMainInvokeEvent, oldName: string, dir: Directory): boolean => {
+  const dirs = store.get('directories', []) as Directory[];
+  const index = dirs.findIndex(d => d.name === oldName);
+  if (index >= 0) dirs[index] = dir;
+  store.set('directories', dirs);
+  return true;
+});
+
+ipcMain.handle('get-default-directory', (): string => {
+  return store.get('defaultDirectory', '') as string;
+});
+
+ipcMain.handle('set-default-directory', (_: IpcMainInvokeEvent, name: string): string => {
+  store.set('defaultDirectory', name);
+  return name;
+});
+
+ipcMain.handle('get-key-mappings', (): KeyMappings => {
+  return store.get('keyMappings', {}) as KeyMappings;
+});
+
+ipcMain.handle('set-key-mappings', (_: IpcMainInvokeEvent, mappings: KeyMappings): KeyMappings => {
+  store.set('keyMappings', mappings);
+  return mappings;
+});
 
 ipcMain.handle('pick-directory', async (): Promise<string | null> => {
   if (!mainWindow) return null;
   const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });
   if (!result.canceled && result.filePaths.length > 0) {
-    store.set('promptsDirectory', result.filePaths[0]);
     return result.filePaths[0];
   }
   return null;
 });
 
-ipcMain.handle('list-folders', (): string[] => {
-  const rootDir = getRootDir();
-  if (!rootDir || !fs.existsSync(rootDir)) return [];
-  
-  try {
-    return fs.readdirSync(rootDir)
-      .filter(name => {
-        const fullPath = path.join(rootDir, name);
-        return fs.statSync(fullPath).isDirectory() && !name.startsWith('.');
-      })
-      .slice(0, 9);
-  } catch {
-    return [];
-  }
-});
-
-ipcMain.handle('read-prompts', (_: IpcMainInvokeEvent, folderName: string): PromptFile[] => {
-  const rootDir = getRootDir();
-  if (!rootDir || !folderName) return [];
-  
-  const dirPath = path.join(rootDir, folderName);
-  if (!fs.existsSync(dirPath)) return [];
+ipcMain.handle('read-directory', (_: IpcMainInvokeEvent, dirPath: string): MarkdownFile[] => {
+  if (!dirPath || !fs.existsSync(dirPath)) return [];
 
   try {
     return fs.readdirSync(dirPath)
@@ -149,11 +179,10 @@ ipcMain.handle('read-prompts', (_: IpcMainInvokeEvent, folderName: string): Prom
   }
 });
 
-ipcMain.handle('create-prompt', (_: IpcMainInvokeEvent, folderName: string, filename: string): { success: boolean; path?: string; error?: string } => {
-  const rootDir = getRootDir();
-  if (!rootDir || !folderName) return { success: false, error: 'No directory configured' };
+ipcMain.handle('create-file', (_: IpcMainInvokeEvent, dirPath: string, filename: string): { success: boolean; path?: string; error?: string } => {
+  if (!dirPath) return { success: false, error: 'No directory specified' };
   
-  const filePath = path.join(rootDir, folderName, filename);
+  const filePath = path.join(dirPath, filename);
   if (fs.existsSync(filePath)) return { success: false, error: 'File already exists' };
   
   const today = new Date().toISOString().split('T')[0];
@@ -193,16 +222,8 @@ ipcMain.handle('write-file', (_: IpcMainInvokeEvent, filePath: string, content: 
   }
 });
 
-ipcMain.handle('get-folder-metadata', (_: IpcMainInvokeEvent, folderName: string): FolderMetadata => {
-  const allMetadata = store.get('folderMetadata', {}) as Record<string, FolderMetadata>;
-  return allMetadata[folderName] || {};
-});
-
-ipcMain.handle('set-folder-metadata', (_: IpcMainInvokeEvent, folderName: string, metadata: FolderMetadata): boolean => {
-  const allMetadata = store.get('folderMetadata', {}) as Record<string, FolderMetadata>;
-  allMetadata[folderName] = metadata;
-  store.set('folderMetadata', allMetadata);
-  return true;
+ipcMain.handle('render-markdown', (_: IpcMainInvokeEvent, content: string): string => {
+  return md.render(content);
 });
 
 ipcMain.handle('open-in-cursor', (_: IpcMainInvokeEvent, projectPath: string): boolean => {

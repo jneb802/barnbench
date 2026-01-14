@@ -6,6 +6,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'">
   <title>barnbench</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="../node_modules/highlight.js/styles/github-dark.css">
 </head>
 <body>
   <div class="app">
@@ -29,7 +30,7 @@
               <line x1="10" y1="14" x2="21" y2="3"/>
             </svg>
           </button>
-          <button class="icon-btn" id="newPromptBtn" title="new prompt (cmd+n)">
+          <button class="icon-btn" id="newPromptBtn" title="new markdown (cmd+n)">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 5v14M5 12h14"/>
             </svg>
@@ -69,6 +70,12 @@
           </button>
           <span class="detail-filename" id="detailFilename"></span>
           <div class="detail-actions">
+            <button class="icon-btn" id="toggleEditBtn" title="toggle edit (cmd+e)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
             <button class="icon-btn" id="detailSaveBtn" title="save (cmd+s)">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
@@ -90,7 +97,8 @@
             </button>
           </div>
         </div>
-        <textarea class="detail-content" id="detailContent" spellcheck="false"></textarea>
+        <textarea class="detail-content hidden" id="detailContent" spellcheck="false"></textarea>
+        <div class="detail-rendered" id="detailRendered"></div>
       </div>
     </main>
 
@@ -126,27 +134,17 @@
           </button>
         </div>
         <div class="modal-body">
-          <label class="setting-label">prompts directory</label>
-          <div class="directory-picker">
-            <input type="text" class="directory-input" id="directoryInput" readonly placeholder="no directory selected">
-            <button class="btn-secondary" id="browseBtn">browse</button>
-          </div>
+          <label class="setting-label">directories</label>
+          <div class="directories-list" id="directoriesList"></div>
+          <button class="btn-secondary" id="addDirectoryBtn" style="margin-top: 8px; width: 100%;">+ add directory</button>
           
-          <label class="setting-label" style="margin-top: 16px;">default folder</label>
+          <label class="setting-label" style="margin-top: 20px;">default directory</label>
           <select class="folder-select" id="defaultFolderSelect">
-            <option value="">select default folder...</option>
+            <option value="">select default...</option>
           </select>
           
-          <div id="folderMetadataSection" style="margin-top: 20px; display: none;">
-            <label class="setting-label">project path</label>
-            <div class="directory-picker">
-              <input type="text" class="directory-input" id="projectPathInput" readonly placeholder="no project path set">
-              <button class="btn-secondary" id="browseProjectBtn">browse</button>
-            </div>
-          </div>
-          
           <label class="setting-label" style="margin-top: 20px;">keyboard shortcuts</label>
-          <p class="input-hint" style="margin-bottom: 12px;">assign folders to number keys 1-9</p>
+          <p class="input-hint" style="margin-bottom: 12px;">assign directories to number keys 1-9</p>
           <div class="key-mappings" id="keyMappings"></div>
         </div>
       </div>
