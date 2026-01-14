@@ -288,8 +288,15 @@ async function switchToFolderByKey(key: string): Promise<void> {
   await switchFolder(folder);
 }
 
-function toggleFolderDropdown(): void { folderDropdown.classList.toggle('hidden'); }
-function closeFolderDropdown(): void { hideModal(folderDropdown); }
+function toggleFolderDropdown(): void {
+  folderDropdown.classList.toggle('hidden');
+  folderBtn.classList.toggle('open');
+}
+
+function closeFolderDropdown(): void {
+  hideModal(folderDropdown);
+  folderBtn.classList.remove('open');
+}
 
 async function openSettings(): Promise<void> {
   defaultFolderSelect.value = defaultFolder;

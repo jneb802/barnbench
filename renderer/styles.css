@@ -94,6 +94,14 @@ body {
   background: var(--bg-tertiary);
 }
 
+.folder-btn svg {
+  transition: transform 200ms ease;
+}
+
+.folder-btn.open svg {
+  transform: rotate(180deg);
+}
+
 .folder-name {
   max-width: 200px;
   overflow: hidden;
@@ -638,4 +646,52 @@ body {
 ::selection {
   background: var(--accent);
   color: white;
+}
+
+/* Tooltips */
+[title] {
+  position: relative;
+}
+
+[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 10px;
+  background: var(--bg-active);
+  color: var(--text-primary);
+  font-size: 11px;
+  white-space: nowrap;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  pointer-events: none;
+  animation: tooltipFadeIn 150ms ease;
+}
+
+[title]:hover::before {
+  content: '';
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-bottom-color: var(--border);
+  z-index: 1000;
+  pointer-events: none;
+  animation: tooltipFadeIn 150ms ease;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
