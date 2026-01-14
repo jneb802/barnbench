@@ -37,6 +37,12 @@ let currentFile: { path: string; name: string; content: string } | null = null;
 let focusedIndex = -1;
 let keyMappings: KeyMappings = {};
 
+const SVG_ICONS = {
+  file: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>',
+  copy: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>',
+  checkmark: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>'
+};
+
 function showModal(modal: HTMLElement): void {
   modal.classList.remove('hidden');
 }
@@ -166,16 +172,10 @@ function renderPromptList(): void {
       </div>
       <div class="prompt-actions">
         <button class="copy-path-btn" data-path-index="${i}" title="copy file path">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
-            <polyline points="13 2 13 9 20 9"></polyline>
-          </svg>
+          ${SVG_ICONS.file}
         </button>
         <button class="copy-btn" data-copy-index="${i}" title="copy content">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-          </svg>
+          ${SVG_ICONS.copy}
         </button>
       </div>
     </div>
@@ -236,7 +236,7 @@ async function copyToClipboardWithFeedback(content: string, button: HTMLButtonEl
   
   button.classList.add('copied');
   const original = button.innerHTML;
-  button.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>`;
+  button.innerHTML = SVG_ICONS.checkmark;
   setTimeout(() => { button.classList.remove('copied'); button.innerHTML = original; }, 1500);
 }
 
