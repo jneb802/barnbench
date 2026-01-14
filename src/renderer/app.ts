@@ -515,5 +515,69 @@ document.addEventListener('keydown', async (e) => {
   if (e.key === 'c' && e.metaKey && focusedIndex >= 0) { e.preventDefault(); await copyFocusedPrompt(); }
 });
 
+let tooltipEl: HTMLDivElement | null = null;
+let tooltipArrow: HTMLDivElement | null = null;
+
+function createTooltip(): void {
+  tooltipEl = document.createElement('div');
+  tooltipEl.className = 'tooltip';
+  document.body.appendChild(tooltipEl);
+  
+  tooltipArrow = document.createElement('div');
+  tooltipArrow.className = 'tooltip-arrow';
+  document.body.appendChild(tooltipArrow);
+}
+
+function showTooltip(target: HTMLElement, text: string): void {
+  if (!tooltipEl || !tooltipArrow) return;
+  
+  tooltipEl.textContent = text;
+  tooltipEl.classList.add('show');
+  tooltipArrow.classList.add('show');
+  
+  const rect = target.getBoundingClientRect();
+  const tooltipRect = tooltipEl.getBoundingClientRect();
+  
+  let left = rect.left + rect.width / 2 - tooltipRect.width / 2;
+  const right = left + tooltipRect.width;
+  
+  if (right > window.innerWidth - 8) {
+    left = window.innerWidth - tooltipRect.width - 8;
+  }
+  if (left < 8) {
+    left = 8;
+  }
+  
+  const top = rect.bottom + 8;
+  tooltipEl.style.left = `${left}px`;
+  tooltipEl.style.top = `${top}px`;
+  
+  const arrowLeft = rect.left + rect.width / 2 - 4;
+  tooltipArrow.style.left = `${arrowLeft}px`;
+  tooltipArrow.style.top = `${rect.bottom + 2}px`;
+}
+
+function hideTooltip(): void {
+  if (!tooltipEl || !tooltipArrow) return;
+  tooltipEl.classList.remove('show');
+  tooltipArrow.classList.remove('show');
+}
+
+document.addEventListener('mouseover', (e) => {
+  const target = e.target as HTMLElement;
+  const titleEl = target.closest('[title]') as HTMLElement | null;
+  if (titleEl?.title) {
+    showTooltip(titleEl, titleEl.title);
+  }
+});
+
+document.addEventListener('mouseout', (e) => {
+  const target = e.target as HTMLElement;
+  if (target.closest('[title]')) {
+    hideTooltip();
+  }
+});
+
+createTooltip();
 listContainer.classList.remove('hidden');
 init();
