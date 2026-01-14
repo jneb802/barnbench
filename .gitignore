@@ -4,6 +4,7 @@ node_modules/
 # Build output (TypeScript compiled)
 dist/
 out/
+release/
 
 # Electron
 *.app
