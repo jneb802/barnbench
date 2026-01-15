@@ -347,14 +347,14 @@ function renderDirectoriesList(): void {
       <div class="directory-path-row">
         <span class="directory-path-label">markdown files</span>
         <div class="directory-path-picker">
-          <div class="directory-path-display">${escapeHtml(dir.markdownPath)}</div>
+          <input type="text" class="directory-path-input" value="${escapeHtml(dir.markdownPath)}" data-md-path="${idx}" placeholder="/path/to/markdown">
           <button class="directory-path-btn" data-browse-md="${idx}">browse</button>
         </div>
       </div>
       <div class="directory-path-row">
         <span class="directory-path-label">project path (optional)</span>
         <div class="directory-path-picker">
-          <div class="directory-path-display">${dir.projectPath ? escapeHtml(dir.projectPath) : 'not set'}</div>
+          <input type="text" class="directory-path-input" value="${dir.projectPath || ''}" data-proj-path="${idx}" placeholder="not set">
           <button class="directory-path-btn" data-browse-proj="${idx}">browse</button>
         </div>
       </div>
@@ -406,15 +406,13 @@ async function updateDirectoryName(oldName: string, newName: string): Promise<vo
   refreshDirectoryUI();
 }
 
-async function browseDirectoryPath(index: number, pathType: 'md' | 'proj'): Promise<void> {
+async function updateDirectoryPath(index: number, pathType: 'md' | 'proj', newPath: string): Promise<void> {
   const dir = directories[index];
-  const newPath = await window.api.pickDirectory();
-  if (!newPath) return;
   
   if (pathType === 'md') {
     dir.markdownPath = newPath;
   } else {
-    dir.projectPath = newPath;
+    dir.projectPath = newPath || undefined;
   }
   
   await window.api.updateDirectory(dir.name, dir);
@@ -427,6 +425,12 @@ async function browseDirectoryPath(index: number, pathType: 'md' | 'proj'): Prom
   }
   
   renderDirectoriesList();
+}
+
+async function browseDirectoryPath(index: number, pathType: 'md' | 'proj'): Promise<void> {
+  const newPath = await window.api.pickDirectory();
+  if (!newPath) return;
+  await updateDirectoryPath(index, pathType, newPath);
 }
 
 function openSettings(): void {
@@ -569,12 +573,29 @@ directoriesList.addEventListener('click', async (e) => {
 
 directoriesList.addEventListener('blur', async (e) => {
   const target = e.target as HTMLInputElement;
+  
   if (target.classList.contains('directory-name-input')) {
     const index = parseInt(target.dataset.dirIndex!);
     const oldName = directories[index].name;
     const newName = target.value.trim();
     if (newName && newName !== oldName) {
       await updateDirectoryName(oldName, newName);
+    }
+  }
+  
+  if (target.dataset.mdPath !== undefined) {
+    const index = parseInt(target.dataset.mdPath);
+    const newPath = target.value.trim();
+    if (newPath && newPath !== directories[index].markdownPath) {
+      await updateDirectoryPath(index, 'md', newPath);
+    }
+  }
+  
+  if (target.dataset.projPath !== undefined) {
+    const index = parseInt(target.dataset.projPath);
+    const newPath = target.value.trim();
+    if (newPath !== (directories[index].projectPath || '')) {
+      await updateDirectoryPath(index, 'proj', newPath);
     }
   }
 }, true);

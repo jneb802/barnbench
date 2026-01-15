@@ -750,18 +750,25 @@ body {
   gap: 0.375rem;
 }
 
-.directory-path-display {
+.directory-path-input {
   flex: 1;
   background: var(--bg-primary);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 0.375rem 0.625rem;
-  font-size: 0.6875rem;
+  padding: 6px 10px;
+  font-size: 11px;
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  outline: none;
+}
+
+.directory-path-input:focus {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.directory-path-input::placeholder {
+  color: var(--text-muted);
 }
 
 .directory-path-btn {
