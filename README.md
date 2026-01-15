@@ -1,5 +1,7 @@
 # BarnBench
 
+![BarnBench Screenshot](assets/screenshot.png)
+
 A minimal macOS desktop app for browsing and managing AI prompts stored as markdown files.
 
 ## Features
